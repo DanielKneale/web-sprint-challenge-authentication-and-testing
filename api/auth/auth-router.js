@@ -1,7 +1,20 @@
 const router = require('express').Router();
+const {checkPayLoad, checkUserInDb,checkUserExists} = require("../middleware/restricted")
+const bcrypt = require("bcrypt")
+const { add } = require("../users/users-model");
 
-router.post('/register', (req, res) => {
-  res.end('implement register, please!');
+
+router.post('/register',checkPayLoad,checkUserInDb, async (req, res) => {
+  console.log("register")
+  try{
+    const hash = bcrypt.hashsync(req.body.password,4)
+    const newUser = await add({username:req.body.username,password:hash})
+    res.status(201).json(newUser)
+  }catch(e){
+    res.status(500).json(`Server errpr: ${e.message}`)
+  }
+
+
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -29,8 +42,21 @@ router.post('/register', (req, res) => {
   */
 });
 
-router.post('/login', (req, res) => {
-  res.end('implement login, please!');
+router.post('/login',checkPayLoad,checkUserExists, (req, res) => {
+  console.log("register");
+  try{
+    const verified = bcrypt.compareSync(req.body.password, req.userData.password) 
+    if(verified){
+      req.session.user = req.userData
+      res.json(`Welcome, ${req.userData.username}`)
+    }else{
+      res.status(401).json("username or password incorrect")
+    }
+  }catch(e){
+    res.status(500).json(`Server errpr: ${e.message}`)
+  }
+  
+
   /*
     IMPLEMENT
     You are welcome to build additional middlewares to help with the endpoint's functionality.
@@ -55,5 +81,19 @@ router.post('/login', (req, res) => {
       the response body should include a string exactly as follows: "invalid credentials".
   */
 });
+
+router.get("/logout",(req,res)=>{
+  if(req.session){
+      req.session.destroy(err=>{
+          if(err){
+              res.json("Can't log out")
+          }else{
+              res.json("Logged out!")
+          }
+      })
+  }else{
+      res.json("There was no session")
+  }
+})
 
 module.exports = router;
