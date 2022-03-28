@@ -10,7 +10,7 @@ const restricted = (req,res,next)=>{
    }else{
      jwt.verify(token,JWT_SECRET,(err,decoded)=>{
        if(err){
-         res.status(404).json("Bad token" + err.message)
+         res.status(404).json("Bad token, " + err.message)
        }else{
          req.decodedToken = decoded
          next()
