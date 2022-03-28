@@ -1,13 +1,25 @@
 const router = require('express').Router();
-const {checkPayLoad, checkUserInDb,checkUserExists} = require("../middleware/restricted")
+const {checkPayLoad, checkUserInDb,checkUserExists} = require("../middleware/middleware")
 const bcrypt = require("bcrypt")
-const { add } = require("../users/users-model");
+const { add, findBy } = require("../users/users-model");
+const jwt = require("jsonwebtoken")
+const { BCRYPT_ROUNDS, JWT_SECRET } = require('../../config')
 
+function makeToken(user){
+    const payload = {
+      subject:user.id,
+      username: user.username,
+    }
+    const options = {
+      expiresIn:"500s"
+    }
+    return jwt.sign(payload,JWT_SECRET, options)
+}
 
 router.post('/register',checkPayLoad,checkUserInDb, async (req, res) => {
   console.log("register")
   try{
-    const hash = bcrypt.hashsync(req.body.password,4)
+    const hash = bcrypt.hashSync(req.body.password,BCRYPT_ROUNDS)
     const newUser = await add({username:req.body.username,password:hash})
     res.status(201).json(newUser)
   }catch(e){
@@ -43,18 +55,18 @@ router.post('/register',checkPayLoad,checkUserInDb, async (req, res) => {
 });
 
 router.post('/login',checkPayLoad,checkUserExists, (req, res) => {
-  console.log("register");
-  try{
-    const verified = bcrypt.compareSync(req.body.password, req.userData.password) 
-    if(verified){
-      req.session.user = req.userData
-      res.json(`Welcome, ${req.userData.username}`)
-    }else{
-      res.status(401).json("username or password incorrect")
-    }
-  }catch(e){
-    res.status(500).json(`Server errpr: ${e.message}`)
-  }
+  let {username, password} = req.body
+  const verified = bcrypt.compareSync(password, req.userData.password) 
+  findBy({username})
+    .then(([user])=>{
+      if(verified){
+        const token = makeToken(user)
+        res.status(200).json({message:`Welcome, ${req.userData.username}`,token})
+      }else{
+        res.status(401).json("username or password incorrect")
+      }
+    })
+    .catch()
   
 
   /*
@@ -82,18 +94,5 @@ router.post('/login',checkPayLoad,checkUserExists, (req, res) => {
   */
 });
 
-router.get("/logout",(req,res)=>{
-  if(req.session){
-      req.session.destroy(err=>{
-          if(err){
-              res.json("Can't log out")
-          }else{
-              res.json("Logged out!")
-          }
-      })
-  }else{
-      res.json("There was no session")
-  }
-})
 
 module.exports = router;

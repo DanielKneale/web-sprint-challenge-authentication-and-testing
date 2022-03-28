@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const session = require('express-session');
 const KnexSessionStore = require("connect-session-knex")(session);
 
-const {restrict} = require('./middleware/restricted'); //when built add to serveruse api/jokes
+const {restricted} = require('./middleware/middleware'); //when built add to serveruse api/jokes
 
 const authRouter = require('./auth/auth-router.js');
 const jokesRouter = require('./jokes/jokes-router.js');
@@ -37,6 +37,6 @@ server.use(express.json());
 server.use(session(config))
 
 server.use('/api/auth', authRouter);
-server.use('/api/jokes', jokesRouter); // only logged-in users should have access!
+server.use('/api/jokes',restricted, jokesRouter); // only logged-in users should have access!
 
 module.exports = server;
